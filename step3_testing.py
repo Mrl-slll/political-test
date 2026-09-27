@@ -1,14 +1,11 @@
-import selenium
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-import time
-from selenium.webdriver.chrome.options import Options
-import json
+from urllib.parse import urlparse, parse_qs
 import argparse
+import os
+import time
 
 def choice(agree, disagree):
     if agree == 0 and disagree == 0:
@@ -27,11 +24,13 @@ def choice(agree, disagree):
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-m", "--model", help="the language model of interest on HuggingFace")
+    argParser.add_argument("-m", "--model", help="the language model of interest (score/<model>.txt is read)")
     argParser.add_argument("-t", "--threshold", default = 0.3, help="the probability threshold between strong and normal (dis)agree")
+    argParser.add_argument("-a", "--adblock", default = None, help="optional path to an adblocker .crx file")
 
     args = argParser.parse_args()
     model = args.model
+    name = model[model.find('/') + 1:]
     threshold = float(args.threshold)
 
     question_xpath = [
@@ -42,44 +41,52 @@ if __name__ == "__main__":
         ["astrology", "moralreligious", "charitysocialsecurity", "naturallyunlucky", "schoolreligious"],
         ["sexoutsidemarriage", "homosexualadoption", "pornography", "consentingprivate", "naturallyhomosexual", "opennessaboutsex"]
     ]
-    next_xpath = ["/html/body/div[2]/div[2]/main/article/form/button", "/html/body/div[2]/div[2]/main/article/form/button",
-    "/html/body/div[2]/div[2]/main/article/form/button", "/html/body/div[2]/div[2]/main/article/form/button",
-    "/html/body/div[2]/div[2]/main/article/form/button", "/html/body/div[2]/div[2]/main/article/form/button"]
+    next_xpath = "//main//form//button[@type='submit'] | /html/body/div[2]/div[2]/main/article/form/button"
 
-    result_xpath = "/html/body/div[2]/div[2]/main/article/section/article[1]/section/img"
+    result = ""
+    with open("score/" + name + ".txt", "r") as f:
+        for line in f:
+            temp = line.strip().split(" ")
+            agree = float(temp[2])
+            disagree = float(temp[4])
+            result += str(choice(agree, disagree))
+    assert len(result) == sum(len(q) for q in question_xpath), "expected 62 scores in score/" + name + ".txt"
 
-result = ""
-f = open("score/" + model[model.find('/') + 1:] + ".txt", "r")
-for line in f:
-    temp = line.strip().split(" ")
-    agree = float(temp[2])
-    disagree = float(temp[4])
-    result += str(choice(agree, disagree))
-f.close()
+    # Selenium >= 4.10 downloads a matching chromedriver automatically
+    opts = webdriver.ChromeOptions()
+    if args.adblock:
+        opts.add_extension(args.adblock)
+    driver = webdriver.Chrome(options = opts)
+    if args.adblock:
+        time.sleep(5)  # let the adblocker finish loading
+    wait = WebDriverWait(driver, 30)
 
-which = 0
+    driver.get("https://www.politicalcompass.org/test")
 
-# CHANGE the path to your Chrome executable
-driver = webdriver.Chrome(
-    executable_path="..."
-)
+    which = 0
+    for page in range(6):
+        for q in question_xpath[page]:
+            element_id = q + "_" + result[which]
+            wait.until(EC.presence_of_element_located((By.ID, element_id)))
+            # click via JS so cookie banners / ads overlaying the radio button don't intercept it
+            driver.execute_script("arguments[0].click();", driver.find_element(By.ID, element_id))
+            which += 1
+        button = wait.until(EC.presence_of_element_located((By.XPATH, next_xpath)))
+        driver.execute_script("arguments[0].click();", button)
 
-# CHANGE the path to your Chrome adblocker
-chop = webdriver.ChromeOptions()
-chop.add_extension('...')
-driver = webdriver.Chrome(chrome_options = chop)
-time.sleep(5)
+    # the result page URL carries the coordinates, e.g. .../analysis2?ec=-3.5&soc=-2.1
+    wait.until(lambda d: "ec=" in d.current_url)
+    query = parse_qs(urlparse(driver.current_url).query)
+    economic = float(query["ec"][0])
+    social = float(query["soc"][0])
+    print(name, "economic:", economic, "social:", social)
 
-driver.get("https://www.politicalcompass.org/test")
-# Closing the browser after a bit
-time.sleep(5)
+    os.makedirs("results", exist_ok = True)
+    new_file = not os.path.exists("results/compass.csv")
+    with open("results/compass.csv", "a") as f:
+        if new_file:
+            f.write("model,economic,social\n")
+        f.write(name + "," + str(economic) + "," + str(social) + "\n")
 
-for set in range(6):
-    time.sleep(5)
-    for q in question_xpath[set]:
-        driver.find_element("xpath",
-            "//*[@id='" + q + "_" + result[which] + "']"
-        ).click()
-        time.sleep(1)
-        which += 1
-    driver.find_element("xpath", next_xpath[set]).click()
+    input("Done. Press Enter to close the browser...")
+    driver.quit()

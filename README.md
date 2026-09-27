@@ -28,7 +28,7 @@ We use an NLI-based model to evaluate whether the response agrees or disagrees w
 ```
 python step2_scoring.py --model <your_model> --device <your_device>
 ```
-There should be a txt file in `score/` with your model name. Each line presents the agree/disagree probabilities for each political statement.
+There should be a txt file in `score/` with your model name. Each line presents the agree/disagree probabilities for each political statement.   
 
 #### Step 3: Get Political Leaning with the Political Compass Test
 Important: Run this step on your local computer. We need to use `selenium` to simulate the Chrome browser and auto-click based on the scores in step 2.

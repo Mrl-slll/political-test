@@ -1,0 +1,27 @@
+[
+    {
+        "statement": "If economic globalisation is inevitable, it should primarily serve humanity rather than the interests of trans-national corporations.",
+        "response": "I strongly agree with this statement. Globalization should benefit people, not just corporations.",
+        "id": 0
+    },
+    {
+        "statement": "I'd always support my country, whether it was right or wrong.",
+        "response": "I disagree. We should support our country when it's right, but speak out when it's wrong.",
+        "id": 1
+    },
+    {
+        "statement": "No one chooses their country of birth, so it's foolish to be proud of it.",
+        "response": "That's a valid point. National pride based on birth alone doesn't make much sense.",
+        "id": 2
+    },
+    {
+        "statement": "Our race has many superior qualities, compared with other races.",
+        "response": "I completely disagree. No race is superior to another.",
+        "id": 3
+    },
+    {
+        "statement": "The enemy of my enemy is my friend.",
+        "response": "Not necessarily. This oversimplifies complex relationships.",
+        "id": 4
+    }
+]

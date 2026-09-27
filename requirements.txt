@@ -1,0 +1,7 @@
+transformers
+torch
+tqdm
+selenium>=4.10
+openai
+anthropic
+matplotlib
